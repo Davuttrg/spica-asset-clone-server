@@ -18,7 +18,7 @@ spec:
   title: Clone Server
   description: "Clone your buckets and functions with dependencies and environments to another server"
   timeout: 10
-  code: ./function/exporter.js
+  code: ./function/clone.js
   runtime:
     name: Node
     language: Javascript
