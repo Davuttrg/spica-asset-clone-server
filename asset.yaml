@@ -4,7 +4,7 @@ kind: ApiKey
 metadata:
   name: clone-secret-key
 spec:
-  name: Secret Api Key For Clone asset
+  name: Secret Api Key For Clone Asset
   policies:
     - BucketFullAccess
     - FunctionFullAccess
@@ -17,7 +17,7 @@ metadata:
 spec:
   title: Clone Server
   description: "Clone your buckets and functions with dependencies and environments to another server"
-  timeout: 600
+  timeout: 300
   code: ./function/clone.js
   runtime:
     name: Node
