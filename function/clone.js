@@ -178,7 +178,7 @@ export async function receiver(req, res) {
         tempIndex = func.index;
         delete func.index;
         delete func.dependencies;
-        if (!data.env) delete func.env;
+        if (!data.env) func.env = {};
         console.log(func.name + " function inserting : ", func);
         await fetch(`https://${HOST}/api/function`, {
             method: "post",
