@@ -129,10 +129,10 @@ export async function receiver(req, res) {
         await Bucket.getAll()
             .then(schemas => schemas.forEach(b => removeBucketsPromises.push(Bucket.remove(b._id))))
             .catch(error => console.log("get allBuckets error :", error));
-
-    await Promise.all(removeBucketsPromises).catch(error =>
-        console.log("removeBucketPromises Error : ", error)
-    );
+    if (removeBucketsPromises.length > 0)
+        await Promise.all(removeBucketsPromises).catch(error =>
+            console.log("removeBucketPromises Error : ", error)
+        );
     /////////--------------Delete Buckets-----------------////////////
 
     /////////--------------Delete Functions-----------------////////////
@@ -167,7 +167,6 @@ export async function receiver(req, res) {
                 console.log("err insertmany buckets : ", error);
             });
     }
-
     /////////--------------Insert Buckets-----------------////////////
 
     /////////--------------Insert Functions-----------------////////////
