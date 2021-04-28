@@ -3,13 +3,25 @@ const fetch = require("node-fetch");
 import { database, close, ObjectId } from "@spica-devkit/database";
 
 export async function sender(req, res) {
-    const { buckets, functions, environments, server_name } = req.body;
+    const { buckets, environments, server_name } = req.query;
     Bucket.initialize({ apikey: `${process.env.API_KEY}` });
     const HOST = req.headers.get("host");
-
+    let spesificSchema = false;
+    console.log(
+        "buckets :",
+        buckets,
+        "environments : ",
+        environments,
+        "server_name : ",
+        server_name
+    );
     let schemas = await Bucket.getAll().catch(error =>
         console.log("get allBuckets error :", error)
     );
+    if (buckets && buckets != "*") {
+        schemas = schemas.filter(schema => JSON.stringify(buckets).indexOf(schema._id) > 0);
+        spesificSchema = true;
+    }
     let allFunctions = await getAllFunctions(HOST).catch(error =>
         console.log("get allfunctions error :", error)
     );
@@ -32,7 +44,9 @@ export async function sender(req, res) {
         body: JSON.stringify({
             data: {
                 schemas: schemas,
-                allFunctions: allFunctions
+                allFunctions: allFunctions,
+                spesificSchema: spesificSchema,
+                env: !environments || environments == true ? true : false
             }
         }),
         headers: { "Content-Type": "application/json" }
@@ -109,9 +123,13 @@ export async function receiver(req, res) {
     Bucket.initialize({ apikey: `${process.env.API_KEY}` });
 
     /////////--------------Delete Buckets-----------------////////////
-    await Bucket.getAll()
-        .then(schemas => schemas.forEach(b => removeBucketsPromises.push(Bucket.remove(b._id))))
-        .catch(error => console.log("get allBuckets error :", error));
+    if (data.spesificSchema)
+        data.schemas.forEach(schema => removeBucketsPromises.push(Bucket.remove(schema._id)));
+    else
+        await Bucket.getAll()
+            .then(schemas => schemas.forEach(b => removeBucketsPromises.push(Bucket.remove(b._id))))
+            .catch(error => console.log("get allBuckets error :", error));
+
     await Promise.all(removeBucketsPromises).catch(error =>
         console.log("removeBucketPromises Error : ", error)
     );
@@ -142,7 +160,6 @@ export async function receiver(req, res) {
         .insertMany(data.schemas)
         .then(data => {
             close();
-            console.log("insertmany buckets : ", data);
         })
         .catch(error => {
             close();
@@ -159,7 +176,8 @@ export async function receiver(req, res) {
         tempIndex = func.index;
         delete func.index;
         delete func.dependencies;
-        console.log("func : ", func);
+        if (!data.env) delete func.env;
+        console.log(func.name + " function inserting : ", func);
         await fetch(`https://${HOST}/api/function`, {
             method: "post",
             body: JSON.stringify(func),
@@ -184,7 +202,6 @@ export async function receiver(req, res) {
 
                 if (tempDep.length > 0) {
                     for (const dep of tempDep) {
-
                         await fetch(`https://${HOST}/api/function/${json._id}/dependencies`, {
                             method: "post",
                             body: JSON.stringify({ name: dep.name + "@" + dep.version }),
@@ -198,10 +215,14 @@ export async function receiver(req, res) {
             })
             .catch(error => console.log("error when function insert", error));
     }
+    /////////--------------Insert Functions-----------------////////////
+
+
     //------------------------------- Delete functions old
     await Promise.all(removeFunctionsPromises).catch(error =>
         console.log("removeFunctionPromises Error : ", error)
     );
     //-------------------------------
+    console.log("-----------done--------------");
     return res.status(200).send({ message: "Ok receiver" });
 }
