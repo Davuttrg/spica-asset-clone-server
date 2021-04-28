@@ -17,7 +17,7 @@ metadata:
 spec:
   title: Clone Server
   description: "Clone your buckets and functions with dependencies and environments to another server"
-  timeout: 120
+  timeout: 600
   code: ./function/clone.js
   runtime:
     name: Node
