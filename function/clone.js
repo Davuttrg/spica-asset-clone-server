@@ -155,16 +155,19 @@ export async function receiver(req, res) {
     /////////--------------Insert Buckets-----------------////////////
     const db = await database();
     let collection_buckets = db.collection("buckets");
-    data.schemas.forEach(schema => (schema._id = new ObjectId(schema._id)));
-    await collection_buckets
-        .insertMany(data.schemas)
-        .then(data => {
-            close();
-        })
-        .catch(error => {
-            close();
-            console.log("err insertmany buckets : ", error);
-        });
+    if (data.schemas.length > 0) {
+        data.schemas.forEach(schema => (schema._id = new ObjectId(schema._id)));
+        await collection_buckets
+            .insertMany(data.schemas)
+            .then(data => {
+                close();
+            })
+            .catch(error => {
+                close();
+                console.log("err insertmany buckets : ", error);
+            });
+    }
+
     /////////--------------Insert Buckets-----------------////////////
 
     /////////--------------Insert Functions-----------------////////////
