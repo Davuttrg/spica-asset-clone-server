@@ -1,3 +1,26 @@
+/*
+
+What this can do ?
+    * Clone your buckets schemas with same _id between your spica servers
+    * Clone your functions with dependencies and environments between your spica servers
+
+The process of this asset works as follows: Suppose the main server is A and B's cloning server. You must download this asset for both of these servers. 
+
+    You should call the 'sender' function with Post method
+        Body 
+            {
+                server_name -> Required! Your functions, dependencies of functions and buckets schemas will send to B
+                (accepted : server_name for example "test-a1b2c")
+
+                buckets -> if it is empty or  '*' then  your all buckets will send to B
+                (accepted : * , with commas next to bucket id for example "bucket_id,bucket_id" or emtpy)
+
+                environments -> if it is empty or  'true' then  your functions will send with environments to B
+                (accepted : true , false or emtpy)
+            }
+        
+*/
+
 import * as Bucket from "@spica-devkit/bucket";
 const fetch = require("node-fetch");
 import { database, close, ObjectId } from "@spica-devkit/database";
@@ -7,14 +30,8 @@ export async function sender(req, res) {
     Bucket.initialize({ apikey: `${process.env.API_KEY}` });
     const HOST = req.headers.get("host");
     let spesificSchema = false;
-    console.log(
-        "buckets :",
-        buckets,
-        "environments : ",
-        environments,
-        "server_name : ",
-        server_name
-    );
+
+    /////////--------------Get Schemas-----------------////////////
     let schemas = await Bucket.getAll().catch(error =>
         console.log("get allBuckets error :", error)
     );
@@ -22,6 +39,9 @@ export async function sender(req, res) {
         schemas = schemas.filter(schema => JSON.stringify(buckets).indexOf(schema._id) > 0);
         spesificSchema = true;
     }
+    /////////--------------Get Schemas-----------------////////////
+
+    /////////--------------Get Functions with dependencies and environments-----------------////////////
     let allFunctions = await getAllFunctions(HOST).catch(error =>
         console.log("get allfunctions error :", error)
     );
@@ -38,7 +58,9 @@ export async function sender(req, res) {
             })
             .catch(error => console.log("getDependencies error :", error));
     }
+    /////////--------------Get Functions with dependencies and environments-----------------////////////
 
+    
     await fetch(`https://${server_name}.hq.spicaengine.com/api/fn-execute/receiver`, {
         method: "post",
         body: JSON.stringify({
@@ -51,8 +73,7 @@ export async function sender(req, res) {
         }),
         headers: { "Content-Type": "application/json" }
     })
-        .then(res => res.json())
-        .then(async json => {
+        .then(_ => {
             return res.status(200).send({ message: "Ok" });
         })
         .catch(error => {
@@ -160,7 +181,7 @@ export async function receiver(req, res) {
         data.schemas.forEach(schema => (schema._id = new ObjectId(schema._id)));
         await collection_buckets
             .insertMany(data.schemas)
-            .then(data => {
+            .then(_ => {
                 close();
             })
             .catch(error => {
@@ -180,7 +201,7 @@ export async function receiver(req, res) {
         delete func.index;
         delete func.dependencies;
         if (!data.env) func.env = {};
-        console.log(func.name + " function inserting : ", func);
+        console.log(func.name + " function inserting");
         await fetch(`https://${HOST}/api/function`, {
             method: "post",
             body: JSON.stringify(func),
@@ -192,6 +213,8 @@ export async function receiver(req, res) {
             .then(res => res.json())
             .then(async json => {
                 console.log("json : ", json, "tempIndex : ", tempIndex, "tempDep : ", tempDep)
+
+                /////////--------------Insert Index-----------------////////////
                 if (tempIndex.index) {
                     await fetch(`https://${HOST}/api/function/${json._id}/index`, {
                         method: "post",
@@ -203,7 +226,9 @@ export async function receiver(req, res) {
                         }
                     });
                 }
+                /////////--------------Insert Index-----------------////////////
 
+                /////////--------------Insert Dependencies-----------------////////////
                 if (tempDep.length > 0) {
                     for (const dep of tempDep) {
                         await fetch(`https://${HOST}/api/function/${json._id}/dependencies`, {
@@ -216,6 +241,8 @@ export async function receiver(req, res) {
                         });
                     }
                 }
+                /////////--------------Insert Dependencies-----------------////////////
+
             })
             .catch(error => console.log("error when function insert", error));
     }
