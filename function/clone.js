@@ -3,7 +3,7 @@ const fetch = require("node-fetch");
 import { database, close, ObjectId } from "@spica-devkit/database";
 
 export async function sender(req, res) {
-    const { buckets, environments, server_name } = req.query;
+    const { buckets, environments, server_name } = req.body;
     Bucket.initialize({ apikey: `${process.env.API_KEY}` });
     const HOST = req.headers.get("host");
     let spesificSchema = false;
@@ -114,6 +114,7 @@ async function getDependencies(id, HOST) {
 }
 
 export async function receiver(req, res) {
+    console.log("-----------Clone Start--------------");
     const { data } = req.body;
     const HOST = req.headers.get("host");
     console.log("data : ", data);
@@ -226,6 +227,6 @@ export async function receiver(req, res) {
         console.log("removeFunctionPromises Error : ", error)
     );
     //-------------------------------
-    console.log("-----------done--------------");
+    console.log("-----------Clone Done--------------");
     return res.status(200).send({ message: "Ok receiver" });
 }
