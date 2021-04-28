@@ -190,6 +190,7 @@ export async function receiver(req, res) {
         })
             .then(res => res.json())
             .then(async json => {
+                console.log("json : ", json, "tempIndex : ", tempIndex, "tempDep : ", tempDep)
                 if (tempIndex.index) {
                     await fetch(`https://${HOST}/api/function/${json._id}/index`, {
                         method: "post",
