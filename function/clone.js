@@ -132,9 +132,6 @@ export async function receiver(req, res) {
             });
         })
         .catch(error => console.log("getAllFunctions error :", error));
-    await Promise.all(removeFunctionsPromises).catch(error =>
-        console.log("removeFunctionPromises Error : ", error)
-    );
     /////////--------------Delete Functions-----------------////////////
 
     /////////--------------Insert Buckets-----------------////////////
@@ -215,5 +212,10 @@ export async function receiver(req, res) {
             })
             .catch(error => console.log("error when function insert", error));
     }
+    //------------------------------- Delete functions old
+    await Promise.all(removeFunctionsPromises).catch(error =>
+        console.log("removeFunctionPromises Error : ", error)
+    );
+    //-------------------------------
     return res.status(200).send({ message: "Ok receiver" });
 }
