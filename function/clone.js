@@ -45,7 +45,6 @@ export async function sender(req, res) {
             console.log("error : ", error);
             return res.status(400).send({ message: error });
         });
-    return {};
 }
 
 async function getAllFunctions(HOST) {
