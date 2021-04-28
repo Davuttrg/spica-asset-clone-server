@@ -45,7 +45,7 @@ spec:
   func: clone
   type: http
   httpOptions:
-    method: Post
+    method: Get
     path: /sender
 ---
 # TRIGGER - Export

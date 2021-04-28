@@ -170,17 +170,7 @@ export async function receiver(req, res) {
         })
             .then(res => res.json())
             .then(async json => {
-                console.log(
-                    "insert function with success",
-                    json,
-                    "currentIndexOfFunction : ",
-                    tempIndex,
-                    "tempDep : ",
-                    tempDep
-                );
-
                 if (tempIndex.index) {
-                    //indexesPromises.push(
                     await fetch(`https://${HOST}/api/function/${json._id}/index`, {
                         method: "post",
                         body: JSON.stringify(tempIndex),
@@ -190,13 +180,11 @@ export async function receiver(req, res) {
                             Authorization: `APIKEY ${process.env.API_KEY}`
                         }
                     });
-                    //  );
                 }
 
                 if (tempDep.length > 0) {
                     for (const dep of tempDep) {
-                        //  tempDep.forEach(dep => {
-                        //   dependenciesPromises.push(
+
                         await fetch(`https://${HOST}/api/function/${json._id}/dependencies`, {
                             method: "post",
                             body: JSON.stringify({ name: dep.name + "@" + dep.version }),
@@ -205,8 +193,6 @@ export async function receiver(req, res) {
                                 Authorization: `APIKEY ${process.env.API_KEY}`
                             }
                         });
-                        //    );
-                        //  });
                     }
                 }
             })
