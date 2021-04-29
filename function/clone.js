@@ -1,12 +1,12 @@
 /*
 
-What this can do ?
+What can this do ?
     * Clone your buckets schemas with same _id between your spica servers
     * Clone your functions with dependencies and environments between your spica servers
 
 The process of this asset works as follows: Suppose the main server is A and B's cloning server. You must download this asset for both of these servers. 
 
-    You should call the 'sender' function with Post method
+    You should call the 'sender' function with Post method to A
         Body 
             {
                 server_name -> Required! Your functions, dependencies of functions and buckets schemas will send to B
@@ -18,7 +18,8 @@ The process of this asset works as follows: Suppose the main server is A and B's
                 environments -> if it is empty or  'true' then  your functions will send with environments to B
                 (accepted : true , false or emtpy)
             }
-        
+You must raise the function maximum timeout up to 300 seconds from the Hq dashboard panel (advance settings)
+
 */
 
 import * as Bucket from "@spica-devkit/bucket";
