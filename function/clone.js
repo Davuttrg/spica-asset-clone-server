@@ -37,7 +37,7 @@ export async function sender(req, res) {
         console.log("get allBuckets error :", error)
     );
     if (buckets && buckets != "*") {
-        schemas = schemas.filter(schema => JSON.stringify(buckets).indexOf(schema._id) > 0);
+        schemas = schemas.filter(schema => JSON.stringify(buckets).indexOf(schema._id) > -1);
         spesificSchema = true;
     }
     /////////--------------Get Schemas-----------------////////////
