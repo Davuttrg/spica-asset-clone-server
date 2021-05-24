@@ -27,6 +27,8 @@ spec:
       valueFrom:
         resourceFieldRef:
           apiKeyName: clone-secret-key
+    - name: _IGNORE_
+      value: "Dont't remove this environment !"
   dependency:
     - name: "@spica-devkit/bucket"
       version: latest

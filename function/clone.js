@@ -47,21 +47,32 @@ export async function sender(req, res) {
         console.log("get allfunctions error :", error)
     );
 
-    for (const fn of allFunctions) {
-        await getIndexes(fn._id, HOST)
-            .then(index => {
-                fn.index = index;
-            })
-            .catch(error => console.log("getIndexes error :", error));
-        await getDependencies(fn._id, HOST)
-            .then(dependency => {
-                fn.dependencies = dependency;
-            })
-            .catch(error => console.log("getDependencies error :", error));
+
+    let isIgnore = false;
+    for (let [index, fn] of allFunctions.entries()) {
+        Object.keys(fn.env).forEach(e => {
+            if (e == "_IGNORE_") {
+                isIgnore = true;
+                allFunctions.splice(index, 1);
+                return;
+            }
+        });
+        if (!isIgnore) {
+            await getIndexes(fn._id, HOST)
+                .then(index => {
+                    fn.index = index;
+                })
+                .catch(error => console.log("getIndexes error :", error));
+            await getDependencies(fn._id, HOST)
+                .then(dependency => {
+                    fn.dependencies = dependency;
+                })
+                .catch(error => console.log("getDependencies error :", error));
+        }
     }
     /////////--------------Get Functions with dependencies and environments-----------------////////////
 
-    
+
     await fetch(`https://${server_name}.hq.spicaengine.com/api/fn-execute/receiver`, {
         method: "post",
         body: JSON.stringify({
@@ -159,17 +170,27 @@ export async function receiver(req, res) {
     /////////--------------Delete Buckets-----------------////////////
 
     /////////--------------Delete Functions-----------------////////////
+    let isIgnore = false;
     await getAllFunctions(HOST)
         .then(functions => {
             functions.forEach(f => {
-                removeFunctionsPromises.push(
-                    fetch(`https://${HOST}/api/function/${f._id}`, {
-                        method: "DELETE",
-                        headers: {
-                            Authorization: `APIKEY ${process.env.API_KEY}`
-                        }
-                    })
-                );
+                isIgnore = false;
+                Object.keys(f.env).forEach(e => {
+                    if (e == "_IGNORE_") {
+                        isIgnore = true;
+                        return;
+                    }
+                });
+                if (!isIgnore) {
+                    removeFunctionsPromises.push(
+                        fetch(`https://${HOST}/api/function/${f._id}`, {
+                            method: "DELETE",
+                            headers: {
+                                Authorization: `APIKEY ${process.env.API_KEY}`
+                            }
+                        })
+                    );
+                }
             });
         })
         .catch(error => console.log("getAllFunctions error :", error));
