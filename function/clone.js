@@ -200,16 +200,12 @@ export async function receiver(req, res) {
     const db = await database();
     let collection_buckets = db.collection("buckets");
     if (data.schemas.length > 0) {
-        data.schemas.forEach(schema => (schema._id = new ObjectId(schema._id)));
-        await collection_buckets
-            .insertMany(data.schemas)
-            .then(_ => {
-                close();
-            })
-            .catch(error => {
-                close();
-                console.log("err insertmany buckets : ", error);
-            });
+        for (let schema of data.schemas) {
+            await db.createCollection(`bucket_${schema._id}`)
+            schema._id = new ObjectId(schema._id);
+            await collection_buckets.insertOne(schema);
+        }
+        close();
     }
     /////////--------------Insert Buckets-----------------////////////
 
