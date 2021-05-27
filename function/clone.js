@@ -12,7 +12,7 @@ The process of this asset works as follows: Suppose the main server is A and B's
                 server_name -> Required! Your functions, dependencies of functions and buckets schemas will send to B
                 (accepted : server_name for example "test-a1b2c")
 
-                buckets -> if it is empty or  '*' then  your all buckets will send to B
+                unwanted_buckets -> if it is empty or  '*' then  your all buckets will send to B
                 (accepted : * , with commas next to bucket id for example "bucket_id,bucket_id" or emtpy)
 
                 environments -> if it is empty or  'true' then  your functions will send with environments to B
@@ -27,17 +27,17 @@ const fetch = require("node-fetch");
 import { database, close, ObjectId } from "@spica-devkit/database";
 
 export async function sender(req, res) {
-    const { buckets, environments, server_name } = req.body;
+    const { unwanted_buckets, environments, server_name } = req.body;
     Bucket.initialize({ apikey: `${process.env.API_KEY}` });
     const HOST = req.headers.get("host");
     let spesificSchema = false;
 
     /////////--------------Get Schemas-----------------////////////
     let schemas = await Bucket.getAll().catch(error =>
-        console.log("get allBuckets error :", error)
+        console.log("get all buckets error :", error)
     );
-    if (buckets && buckets != "*") {
-        schemas = schemas.filter(schema => JSON.stringify(buckets).indexOf(schema._id) > -1);
+    if (unwanted_buckets && unwanted_buckets != "*") {
+        schemas = schemas.filter(schema => JSON.stringify(unwanted_buckets).indexOf(schema._id) > -1);
         spesificSchema = true;
     }
     /////////--------------Get Schemas-----------------////////////
@@ -49,11 +49,13 @@ export async function sender(req, res) {
 
 
     let isIgnore = false;
+    let willSpliceIndex;
     for (let [index, fn] of allFunctions.entries()) {
+        isIgnore = false;
         Object.keys(fn.env).forEach(e => {
             if (e == "_IGNORE_") {
                 isIgnore = true;
-                allFunctions.splice(index, 1);
+                willSpliceIndex = index;
                 return;
             }
         });
@@ -70,6 +72,7 @@ export async function sender(req, res) {
                 .catch(error => console.log("getDependencies error :", error));
         }
     }
+    allFunctions.splice(willSpliceIndex, 1);
     /////////--------------Get Functions with dependencies and environments-----------------////////////
 
 
@@ -145,32 +148,9 @@ async function getDependencies(id, HOST) {
             });
     });
 }
-
-export async function receiver(req, res) {
-    console.log("-----------Clone Start--------------");
-    const { data } = req.body;
-    const HOST = req.headers.get("host");
-    console.log("data : ", data);
-    let removeBucketsPromises = [];
-    let removeFunctionsPromises = [];
-
-    Bucket.initialize({ apikey: `${process.env.API_KEY}` });
-
-    /////////--------------Delete Buckets-----------------////////////
-    if (data.spesificSchema)
-        data.schemas.forEach(schema => removeBucketsPromises.push(Bucket.remove(schema._id)));
-    else
-        await Bucket.getAll()
-            .then(schemas => schemas.forEach(b => removeBucketsPromises.push(Bucket.remove(b._id))))
-            .catch(error => console.log("get allBuckets error :", error));
-    if (removeBucketsPromises.length > 0)
-        await Promise.all(removeBucketsPromises).catch(error =>
-            console.log("removeBucketPromises Error : ", error)
-        );
-    /////////--------------Delete Buckets-----------------////////////
-
-    /////////--------------Delete Functions-----------------////////////
+async function deleteFunctions(HOST) {
     let isIgnore = false;
+    let removeFunctionsPromises = [];
     await getAllFunctions(HOST)
         .then(functions => {
             functions.forEach(f => {
@@ -194,20 +174,25 @@ export async function receiver(req, res) {
             });
         })
         .catch(error => console.log("getAllFunctions error :", error));
-    /////////--------------Delete Functions-----------------////////////
 
-    /////////--------------Insert Buckets-----------------////////////
-    const db = await database();
-    let collection_buckets = db.collection("buckets");
-    if (data.schemas.length > 0) {
-        for (let schema of data.schemas) {
-            await db.createCollection(`bucket_${schema._id}`)
-            schema._id = new ObjectId(schema._id);
-            await collection_buckets.insertOne(schema);
-        }
-        close();
-    }
-    /////////--------------Insert Buckets-----------------////////////
+    await Promise.all(removeFunctionsPromises).catch(error =>
+        console.log("removeFunctionPromises Error : ", error)
+    );
+}
+export async function receiver(req, res) {
+    console.log("-----------Clone Start--------------");
+    const { data } = req.body;
+    const HOST = req.headers.get("host");
+
+    Bucket.initialize({ apikey: `${process.env.API_KEY}` });
+
+    /////////--------------Bucket Operations-----------------////////////
+    await bucketOperations(data.schemas, data.spesificSchema)
+    /////////--------------Bucket Operations-----------------////////////
+
+    /////////--------------Delete Functions-----------------////////////
+    await deleteFunctions(HOST)
+    /////////--------------Delete Functions-----------------////////////
 
     /////////--------------Insert Functions-----------------////////////
     let tempDep;
@@ -230,8 +215,6 @@ export async function receiver(req, res) {
         })
             .then(res => res.json())
             .then(async json => {
-                console.log("json : ", json, "tempIndex : ", tempIndex, "tempDep : ", tempDep)
-
                 /////////--------------Insert Index-----------------////////////
                 if (tempIndex.index) {
                     await fetch(`https://${HOST}/api/function/${json._id}/index`, {
@@ -247,17 +230,15 @@ export async function receiver(req, res) {
                 /////////--------------Insert Index-----------------////////////
 
                 /////////--------------Insert Dependencies-----------------////////////
-                if (tempDep.length > 0) {
-                    for (const dep of tempDep) {
-                        await fetch(`https://${HOST}/api/function/${json._id}/dependencies`, {
-                            method: "post",
-                            body: JSON.stringify({ name: dep.name + "@" + dep.version }),
-                            headers: {
-                                "Content-Type": "application/json",
-                                Authorization: `APIKEY ${process.env.API_KEY}`
-                            }
-                        });
-                    }
+                for (const dep of tempDep) {
+                    await fetch(`https://${HOST}/api/function/${json._id}/dependencies`, {
+                        method: "post",
+                        body: JSON.stringify({ name: dep.name + "@" + dep.version }),
+                        headers: {
+                            "Content-Type": "application/json",
+                            Authorization: `APIKEY ${process.env.API_KEY}`
+                        }
+                    });
                 }
                 /////////--------------Insert Dependencies-----------------////////////
 
@@ -266,12 +247,62 @@ export async function receiver(req, res) {
     }
     /////////--------------Insert Functions-----------------////////////
 
-
-    //------------------------------- Delete functions old
-    await Promise.all(removeFunctionsPromises).catch(error =>
-        console.log("removeFunctionPromises Error : ", error)
-    );
-    //-------------------------------
     console.log("-----------Clone Done--------------");
     return res.status(200).send({ message: "Ok receiver" });
+}
+export async function clearCollections() {
+    const db = await database();
+    let collections = await db.listCollections().toArray();
+    await collections
+        .map(c => c.name)
+        .filter(n => n.startsWith("bucket_"))
+        .forEach(n => db.dropCollection(n));
+
+    return {}
+}
+
+
+async function bucketOperations(newSchemas, spesificSchema) {
+
+    let oldSchemas = await Bucket.getAll();
+    const db = await database();
+    let collection_buckets = db.collection("buckets");
+
+    let willAdd = [];
+    let willRemove = [];
+    let willUpdate = [];
+    let promises = [];
+
+    newSchemas.forEach(n => {
+        let upd_data = oldSchemas.filter(o => o._id == n._id)[0];
+        if (upd_data)
+            willUpdate.push(n);
+        else willAdd.push(n);
+    });
+    oldSchemas.forEach(o => {
+        let upd_data = newSchemas.filter(n => n._id == o._id)[0];
+        if (!upd_data) willRemove.push(o);
+    });
+
+    console.log("willAdd :", willAdd, "willUpdate : ", willUpdate, "will delete : ", willRemove);
+
+    for (let schema of willAdd) {
+        await db.createCollection(`bucket_${schema._id}`)
+        schema._id = new ObjectId(schema._id);
+        await collection_buckets.insertOne(schema);
+    }
+
+    willRemove.forEach(r => { db.dropCollection(`bucket_${r._id}`); promises.push(Bucket.remove(r._id)) });
+    willUpdate.forEach(u =>
+        promises.push(Bucket.update(u._id, u))
+    );
+
+
+    await Promise.all(promises)
+        .then(response => {
+            console.log("--ALL PROMISES DONE ", response);
+        })
+        .catch(error => {
+            console.llog(error);
+        });
 }
