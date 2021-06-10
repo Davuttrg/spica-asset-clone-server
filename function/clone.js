@@ -37,7 +37,7 @@ export async function sender(req, res) {
         console.log("get all buckets error :", error)
     );
     if (unwanted_buckets && unwanted_buckets != "*") {
-        schemas = schemas.filter(schema => JSON.stringify(unwanted_buckets).indexOf(schema._id) > -1);
+        schemas = schemas.filter(schema => JSON.stringify(unwanted_buckets).indexOf(schema._id) == -1);
         spesificSchema = true;
     }
     /////////--------------Get Schemas-----------------////////////
@@ -187,7 +187,7 @@ export async function receiver(req, res) {
     Bucket.initialize({ apikey: `${process.env.API_KEY}` });
 
     /////////--------------Bucket Operations-----------------////////////
-    await bucketOperations(data.schemas, data.spesificSchema)
+    await bucketOperations(data.schemas)
     /////////--------------Bucket Operations-----------------////////////
 
     /////////--------------Delete Functions-----------------////////////
@@ -250,19 +250,8 @@ export async function receiver(req, res) {
     console.log("-----------Clone Done--------------");
     return res.status(200).send({ message: "Ok receiver" });
 }
-export async function clearCollections() {
-    const db = await database();
-    let collections = await db.listCollections().toArray();
-    await collections
-        .map(c => c.name)
-        .filter(n => n.startsWith("bucket_"))
-        .forEach(n => db.dropCollection(n));
 
-    return {}
-}
-
-
-async function bucketOperations(newSchemas, spesificSchema) {
+async function bucketOperations(newSchemas) {
 
     let oldSchemas = await Bucket.getAll();
     const db = await database();
